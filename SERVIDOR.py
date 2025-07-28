@@ -101,7 +101,7 @@ class Server:
                 print(f"[DEBUG] Enviando para grupo {group_name}: {self.groups[group_name]}")
                 
                 for member in self.groups.get(group_name, set()):
-                    if member in self.clients and member != sender:
+                    if member in self.clients:
                         try:
                             self.clients[member].send(json.dumps(msg_data).encode('utf-8'))
                             print(f"[MSG GRUPO] {group_name}: {sender} -> {member}")
@@ -231,20 +231,37 @@ class Server:
     def _interpret_command(self, command: CommandDTO, msg_data: dict):
         sender = msg_data["sender"]
         group_name = msg_data["group"]
+        args = msg_data["message"]["message"][1:].split()
         match command.name:
             case "history":
                 self._history_command(sender, group_name)
-            case _:
-                print("command not found")
+            case "delete":
+                self._delete_command(sender, group_name, args)
 
-    def _history_command(self, user, group_name):
-        history = self._get_user_message_history(user, group_name)
+    def _delete_command(self, sender: str, group_name: str, args: list[str]):
+        message_id = int(args[1])
+        group = self.messages["group"][group_name]
+        for message in group:
+            if message["id"] == message_id and message["sender"] == sender:
+                message["deleted"] = True
+                for member in self.groups.get(group_name, set()):
+                    if member in self.clients:
+                        try:
+                            self.clients[member].send(json.dumps(message).encode('utf-8'))
+                            print(f"[MSG GRUPO] {group_name}: {sender} -> {member}")
+                        except:
+                            self.handle_disconnect(member)
+                break
+
+
+    def _history_command(self, sender: str, group_name: str):
+        history = self._get_user_message_history(sender, group_name)
         string_builder = "\n"
         string_builder += f"ID: Mensagem\n"
         for message in history:
             string_builder += f"{message[0]}: {message[1]}\n"
 
-        self._send_private_message(user, string_builder)
+        self._send_private_message(sender, string_builder)
 
     """ 
     Retorna uma lista com o histórico de mensagens de um usuário em um grupo no seguinte formato:
@@ -254,10 +271,10 @@ class Server:
         history = []
         group = self.messages["group"][group_name]
         for message in group:
-            if message["sender"] == username:
+            if message["sender"] == username and not message.get("deleted", False):
                 message_data = (message["id"], message["message"]["message"])
                 history.append(message_data)
-        print(self.messages)
+
         return history
 
     # Envia mensagem do servidor para um usuário
