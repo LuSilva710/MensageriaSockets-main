@@ -162,7 +162,6 @@ class ChatClient:
                 break
 
     def process_received_message(self, message):
-        """Processa uma mensagem recebida do servidor"""
         if message.get('type') == 'group_message':
             history_key = f"group_{message.get('group')}"
         elif message.get('type') == 'private_message':
@@ -170,12 +169,17 @@ class ChatClient:
             history_key = f"individual_{other_user}"
         else:
             history_key = "system"
-    
+
         if history_key not in self.chat_history:
             self.chat_history[history_key] = []
         self.chat_history[history_key].append(message)
-    
+
         current_key = f"{self.current_chat_type}_{self.current_chat}" if self.current_chat else None
+
+        if message.get('sender') == 'Server' and message.get('type') == 'private_message':
+            self.display_message(message)
+            return
+
         if history_key == current_key or message.get('type') == 'system':
             self.display_message(message)
 

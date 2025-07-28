@@ -1,0 +1,8 @@
+[
+  {
+    "name": "history",
+    "description": "Exibe o histórico de mensagens do usuário.",
+    "usage": "/history",
+    "min_args": 1
+  }
+]

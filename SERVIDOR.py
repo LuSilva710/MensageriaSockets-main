@@ -1,7 +1,9 @@
 import socket
 import threading
 import json
+import traceback
 from datetime import datetime
+from dtos import CommandDTO
 
 class Server:
     def __init__(self, host='127.0.0.1', port=5050):
@@ -17,6 +19,9 @@ class Server:
         self.groups = {'Geral': set()}
         self.messages = {'individual': {}, 'group': {'Geral': []}}
         self.running = True
+
+        self.commands: list[CommandDTO] = []
+        self._load_commands()
         
         print(f"[SERVIDOR OUVINDO] {self.host}:{self.port}")
 
@@ -65,6 +70,10 @@ class Server:
                 'group': group_name if group_name != 'individual' else None
             }
 
+            if group_name != 'individual' and msg_data["message"]["message"].startswith("/"):
+                self._handle_command(msg_data)
+                return
+
             if group_name == 'individual':
                 recipient = message['recipient']
                 msg_data['recipient'] = recipient
@@ -101,7 +110,8 @@ class Server:
             
                     
         except Exception as e:
-            print(f"[ERRO BROADCAST] {e}")
+            error_info = traceback.format_exc()
+            print(f"[ERRO BROADCAST] {error_info}")
 
     def handle_client(self, conn, addr):
         username = None
@@ -174,6 +184,86 @@ class Server:
         finally:
             if username:
                 self.handle_disconnect(username)
+
+    def _load_commands(self, path="resources/commands.json"):
+        data = []
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        if len(data) == 0:
+            print(f"[ERRO] Falha ao carregar comandos em: {path}")
+            return
+
+        for command in data:
+            self.commands.append(
+                CommandDTO(
+                    command["name"],
+                    command["description"],
+                    command["usage"],
+                    command["min_args"]
+                ))
+        print(f"[INFO] {len(data)} comandos carregados.")
+
+    def _get_command(self, command_name: str) -> CommandDTO:
+        for c in self.commands:
+            if c.name == command_name:
+                return c
+        return None
+
+    def _handle_command(self, msg_data):
+        user_message = msg_data["message"]["message"]
+        command_str = user_message[1:]
+        sender = msg_data["sender"]
+
+        args = command_str.split()
+        command = self._get_command(args[0])
+
+        if command == None:
+            self._send_private_message(sender, "Comando não existe.")
+            return
+
+        if (len(args) >= 2 and args[1] in ["-h", "--help"]) or len(args) < command.min_args:
+            self._send_private_message(sender, f"\ndesc: {command.description}\nusage:\n    {command.usage}")
+            return
+
+        self._interpret_command(command, msg_data)
+
+    def _interpret_command(self, command: CommandDTO, msg_data: dict):
+        sender = msg_data["sender"]
+        group_name = msg_data["group"]
+        match command.name:
+            case "history":
+                self._history_command(sender, group_name)
+            case _:
+                print("command not found")
+
+    def _history_command(self, user, group_name):
+        history = self._get_user_message_history(user, group_name)
+        string_builder = "\n"
+        string_builder += f"ID: Mensagem\n"
+        for message in history:
+            string_builder += f"{message[0]}: {message[1]}\n"
+
+        self._send_private_message(user, string_builder)
+
+    """ 
+    Retorna uma lista com o histórico de mensagens de um usuário em um grupo no seguinte formato:
+        (id_mensagem, mensagem)
+    """
+    def _get_user_message_history(self, username: str, group_name: str) -> list[tuple]:
+        history = []
+        group = self.messages["group"][group_name]
+        for message in group:
+            if message["sender"] == username:
+                message_data = (message["id"], message["message"]["message"])
+                history.append(message_data)
+        print(self.messages)
+        return history
+
+    # Envia mensagem do servidor para um usuário
+    def _send_private_message(self, receiver: str, message: str):
+        message_dict = {"recipient": receiver, "message": message}
+        self.broadcast(message_dict, sender="Server", group_name='individual')
 
     def start(self):
         print(f"[SERVIDOR INICIADO] {self.host}:{self.port}")
