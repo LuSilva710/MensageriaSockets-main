@@ -1,0 +1,20 @@
+[
+  {
+    "name": "history",
+    "description": "Exibe o histórico de mensagens do usuário.",
+    "usage": "/history",
+    "min_args": 1
+  },
+  {
+    "name": "delete",
+    "description": "Apaga uma mensagem especificada.",
+    "usage": "/delete <id_mensagem>",
+    "min_args": 2
+  },
+  {
+    "name": "edit",
+    "description": "Edita uma mensagem especificada.",
+    "usage": "/edit <id_mensagem> <nova_mensagem>",
+    "min_args": 3
+  }
+]
