@@ -8,13 +8,14 @@
 Trabalho desenvolvido para a disciplina de **Redes de Computadores** do 5º período de Sistemas de Informação no IFMG, implementando um sistema completo de troca de mensagens utilizando sockets TCP/IP com interface gráfica.
 
 ## ✨ Funcionalidades
-| Módulo | Descrição |
-|--------|-----------|
-| **Chat Privado** | Comunicação 1-1 entre usuários |
-| **Grupos** | Salas de chat com múltiplos participantes |
-| **Histórico** | Armazenamento local das conversas |
-| **Contatos** | Listagem de usuários online |
-| **Convites** | Sistema para adicionar membros a grupos |
+| Módulo           | Descrição                                              |
+|------------------|--------------------------------------------------------|
+| **Chat Privado** | Comunicação 1-1 entre usuários                         |
+| **Grupos**       | Salas de chat com múltiplos participantes              |
+| **Histórico**    | Armazenamento local das conversas                      |
+| **Contatos**     | Listagem de usuários online                            |
+| **Convites**     | Sistema para adicionar membros a grupos                |
+| **Comandos**     | Sistema de comandos para edição e deleção de mensagens |
 
 ## 🛠️ Tecnologias
 - **Backend**:
@@ -36,3 +37,15 @@ python SERVIDOR.py
 
 # Iniciar cliente (em terminal separado)
 python CLIENTE.py
+```
+
+## ⌨️ Comandos
+- **History**  
+Exibe histórico de mensagens do usuário com um ID atribuído a cada uma.  
+```/history```
+- **Delete**  
+Apaga uma mensagem dado seu ID obtido pelo comando `/history`.  
+```/delete <id_mensagem>```
+- **Edit**  
+Edita uma mensagem dado seu ID obtido pelo comando `/history`.  
+```/edit <id_mensagem> <nova_mensagem>```
