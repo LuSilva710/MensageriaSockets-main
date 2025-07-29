@@ -237,22 +237,27 @@ class Server:
                 self._history_command(sender, group_name)
             case "delete":
                 self._delete_command(sender, group_name, args)
+            case "edit":
+                self._edit_command(sender, group_name, args)
+
+    def _edit_command(self, sender: str, group_name: str, args: list[str]):
+        message_id = int(args[1])
+        new_message = args[2]
+
+        message = self._get_message_by_id(group_name, message_id, sender)
+        if len(message) > 0:
+            message["message"] = new_message
+            message["edited"] = True
+            self._update_message(message, group_name, sender)
+
 
     def _delete_command(self, sender: str, group_name: str, args: list[str]):
         message_id = int(args[1])
-        group = self.messages["group"][group_name]
-        for message in group:
-            if message["id"] == message_id and message["sender"] == sender:
-                message["deleted"] = True
-                for member in self.groups.get(group_name, set()):
-                    if member in self.clients:
-                        try:
-                            self.clients[member].send(json.dumps(message).encode('utf-8'))
-                            print(f"[MSG GRUPO] {group_name}: {sender} -> {member}")
-                        except:
-                            self.handle_disconnect(member)
-                break
+        message = self._get_message_by_id(group_name, message_id, sender)
 
+        if len(message) > 0:
+            message["deleted"] = True
+            self._update_message(message, group_name, sender)
 
     def _history_command(self, sender: str, group_name: str):
         history = self._get_user_message_history(sender, group_name)
@@ -262,6 +267,25 @@ class Server:
             string_builder += f"{message[0]}: {message[1]}\n"
 
         self._send_private_message(sender, string_builder)
+
+    def _get_message_by_id(self, group_name: str, message_id: int, sender: str) -> dict:
+        group = self.messages["group"][group_name]
+        for message in group:
+            if message["id"] == message_id and message["sender"] == sender:
+                return message
+        return {}
+
+    """
+    Reenvia uma mensagem para todos os membros de um grupo(usado para atualizar uma mensagem quando ela é apagada/editada)
+    """
+    def _update_message(self, message: dict, group_name: str, sender: str):
+        for member in self.groups.get(group_name, set()):
+            if member in self.clients:
+                try:
+                    self.clients[member].send(json.dumps(message).encode('utf-8'))
+                    print(f"[MSG GRUPO] {group_name}: {sender} -> {member}")
+                except:
+                    self.handle_disconnect(member)
 
     """ 
     Retorna uma lista com o histórico de mensagens de um usuário em um grupo no seguinte formato:
