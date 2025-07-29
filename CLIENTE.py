@@ -415,7 +415,7 @@ class ChatClient:
 
     def edit_message(self):
         """Edita uma mensagem"""
-        passpass
+        pass
 
     def delete_message(self):
         """Apaga uma mensagem"""
