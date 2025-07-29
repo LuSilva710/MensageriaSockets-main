@@ -185,9 +185,9 @@ class Server:
             if username:
                 self.handle_disconnect(username)
 
-    def _load_commands(self, path="resources/commands.json"):
+    def _load_commands(self, path="config/commands.json"):
         data = []
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         if len(data) == 0:
