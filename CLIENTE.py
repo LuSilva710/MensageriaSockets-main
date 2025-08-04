@@ -162,7 +162,6 @@ class ChatClient:
                 break
 
     def process_received_message(self, message):
-        """Processa uma mensagem recebida do servidor"""
         if message.get('type') == 'group_message':
             history_key = f"group_{message.get('group')}"
         elif message.get('type') == 'private_message':
@@ -170,14 +169,28 @@ class ChatClient:
             history_key = f"individual_{other_user}"
         else:
             history_key = "system"
-    
+
         if history_key not in self.chat_history:
             self.chat_history[history_key] = []
-        self.chat_history[history_key].append(message)
-    
+
+        if 'id' in message and message.get('type') == 'group_message':
+            for idx, m in enumerate(self.chat_history[history_key]):
+                if m.get('id') == message['id'] and m.get('sender') == message.get('sender'):
+                    self.chat_history[history_key][idx] = message
+                    break
+            else:
+                self.chat_history[history_key].append(message)
+        else:
+            self.chat_history[history_key].append(message)
+
         current_key = f"{self.current_chat_type}_{self.current_chat}" if self.current_chat else None
-        if history_key == current_key or message.get('type') == 'system':
+
+        if message.get('sender') == 'Server' and message.get('type') == 'private_message':
             self.display_message(message)
+            return
+
+        if history_key == current_key or message.get('type') == 'system':
+            self.load_chat_history()
 
     def display_message(self, message_data):
         """Exibe uma mensagem no chat"""
@@ -264,6 +277,7 @@ class ChatClient:
                     'timestamp':  timestamp
                 }
             # Atualização local imediata APENAS para o remetente
+                """
                 self.process_received_message({
                  'type': 'group_message',
                  'sender': self.username,
@@ -271,7 +285,8 @@ class ChatClient:
                  'timestamp': timestamp,
                  'group': self.current_chat,
                  'self_sent': True  # Marca como mensagem própria
-            })
+                })
+                """
             else:
                 msg_data = {
                     'type': 'private_message',
