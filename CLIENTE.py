@@ -235,16 +235,15 @@ class ChatClient:
             f"{invite_data['invited_by']} te convidou para o grupo {invite_data['group_name']}.\nDeseja entrar?",
             parent=self.root
         )
-        
-        if response:
-            try:
-                self.client_socket.send(json.dumps({
-                    'type': 'invite_to_group',
-                    'group_name': invite_data['group_name'],
-                    'contact_name': self.username
-                }).encode('utf-8'))
-            except Exception as e:
-                messagebox.showerror("Erro", f"Falha ao aceitar convite: {e}")
+        ans = 'accept_invite' if response else 'reject_invite'
+        try:
+            self.client_socket.send(json.dumps({
+                'type': ans,
+                'group_name': invite_data['group_name'],
+                'username': self.username
+            }).encode('utf-8'))
+        except Exception as e:
+            messagebox.showerror("Erro", f"Falha ao aceitar convite: {e}")
 
     def update_contact_list(self, contacts, groups):
         """Atualiza as listas de contatos e grupos"""

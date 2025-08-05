@@ -19,6 +19,7 @@ class Server:
         self.groups = {'Geral': set()}
         self.messages = {'individual': {}, 'group': {'Geral': []}}
         self.running = True
+        self.pending_invites = {}  # {username: [{'group': group_name, 'invited_by': sender}]}
 
         self.commands: list[CommandDTO] = []
         self._load_commands()
@@ -163,15 +164,47 @@ class Server:
                         group_name = data['group_name']
                         contact_name = data['contact_name']
                         if group_name in self.groups and contact_name in self.clients:
-                            if contact_name not in self.groups[group_name]:
-                                self.groups[group_name].add(contact_name)
-                                print(f"[CONVITE ACEITO] {contact_name} entrou em {group_name}")
-                                self.update_all_clients()
-                                self.clients[contact_name].send(json.dumps({
-                                    'type': 'group_invite',
-                                    'group_name': group_name,
-                                    'invited_by': username
-                                }).encode('utf-8'))
+                            # Adiciona o convite à lista de pendentes em vez de adicionar direto ao grupo
+                            if contact_name not in self.pending_invites:
+                                self.pending_invites[contact_name] = []
+                            self.pending_invites[contact_name].append({
+                                'group': group_name,
+                                'invited_by': username
+                            })
+                            print(f"[CONVITE ENVIADO] {username} convidou {contact_name} para {group_name}")
+                            self.clients[contact_name].send(json.dumps({
+                                'type': 'group_invite',
+                                'group_name': group_name,
+                                'invited_by': username
+                            }).encode('utf-8'))
+
+                    elif data.get('type') == 'accept_invite':
+                        group_name = data['group_name']
+                        username = data['username']
+                        # Verifica se o convite existe
+                        if username in self.pending_invites:
+                            for invite in self.pending_invites[username]:
+                                if invite['group'] == group_name:
+                                    # Adiciona ao grupo apenas agora que aceitou
+                                    self.groups[group_name].add(username)
+                                    # Remove o convite pendente
+                                    self.pending_invites[username].remove(invite)
+                                    if not self.pending_invites[username]:
+                                        del self.pending_invites[username]
+                                    print(f"[CONVITE ACEITO] {username} entrou em {group_name}")
+                                    self.update_all_clients()
+                                    break
+
+                    elif data.get('type') == 'reject_invite':
+                        group_name = data['group_name']
+                        username = data['username']
+                        # Remove o convite pendente sem adicionar ao grupo
+                        if username in self.pending_invites:
+                            self.pending_invites[username] = [invite for invite in self.pending_invites[username] 
+                                                            if invite['group'] != group_name]
+                            if not self.pending_invites[username]:
+                                del self.pending_invites[username]
+                            print(f"[CONVITE REJEITADO] {username} recusou entrar em {group_name}")
                             
                 except json.JSONDecodeError:
                     print(f"[ERRO JSON] {username}")
@@ -267,6 +300,7 @@ class Server:
             string_builder += f"{message[0]}: {message[1]}\n"
 
         self._send_private_message(sender, string_builder)
+        print(f"[HISTORY] {sender} solicitou o histórico do grupo {group_name}")
 
     def _get_message_by_id(self, group_name: str, message_id: int, sender: str) -> dict:
         group = self.messages["group"][group_name]
